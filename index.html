@@ -385,6 +385,7 @@ label.field{display:block; margin-bottom:13px; font-size:11px; font-weight:800; 
     <div class="today-note" id="loc-label"></div>
     <div class="today-grid" id="today-grid"></div>
     <div class="today-hint" id="today-hint"></div>
+    <div class="today-note" id="today-note-src"></div>
   </div>
   <div class="season" id="season-panel">
     <div class="season-tag latin">SEASONAL PATTERN</div>
@@ -1048,7 +1049,7 @@ function windDir(deg){
 function todayHint(w){
   const hints=[];
   if(w){
-    if(w.code>=61 && w.code<=99) hints.push("<b>雨のローライト</b>：トップ・巻物が強い時間。増水後の濁りはチャート系");
+    if((w.code>=61 && w.code<=99) || (w.prob!=null && w.prob>=50)) hints.push("<b>雨のローライト</b>：トップ・巻物が強い時間。増水後の濁りはチャート系");
     if(w.wind>=5) hints.push("<b>強風注意</b>：安全第一。風裏か、あえて風表のブレイクをスピナベで");
     else if(w.wind>=3) hints.push("<b>風が吹いたら</b>：風の当たる岸にベイトが寄る。巻物のチャンス");
     if(w.pressure && w.pressure<=1005) hints.push("<b>低気圧接近</b>：気圧低下で浮きやすく喰いが立つ。荒食いに期待");
@@ -1064,25 +1065,48 @@ function renderTodayChips(w){
   let html = "";
   if(w){
     const [wl, emoji] = weatherLabel(w.code);
-    html += '<div class="tchip"><b>'+emoji+" "+wl+'</b><span>天気</span></div>';
+    html += '<div class="tchip"><b>'+emoji+" "+wl+'</b><span>現在の天気</span></div>';
     html += '<div class="tchip"><b class="num">'+Math.round(w.temp)+'℃</b><span>気温</span></div>';
     html += '<div class="tchip"><b class="num">'+w.wind.toFixed(1)+'<small style="font-size:11px">m/s</small> '+windDir(w.windDir)+'</b><span>風</span></div>';
     html += '<div class="tchip"><b class="num">'+Math.round(w.pressure)+'<small style="font-size:11px">hPa</small></b><span>気圧</span></div>';
+    if(w.dayCode!=null){
+      const [dl2, em2] = weatherLabel(w.dayCode);
+      html += '<div class="tchip"><b>'+em2+" "+dl2+'</b><span>今日の予報</span></div>';
+    }
+    if(w.tmax!=null && w.tmin!=null){
+      html += '<div class="tchip"><b class="num">'+Math.round(w.tmax)+'<small style="font-size:11px">℃</small>／'+Math.round(w.tmin)+'<small style="font-size:11px">℃</small></b><span>最高・最低</span></div>';
+    }
+    if(w.prob!=null){
+      html += '<div class="tchip"><b class="num">'+w.prob+'<small style="font-size:11px">%</small></b><span>降水確率</span></div>';
+    }
   }else{
     html += '<div class="tchip"><b>—</b><span>天気（取得できません）</span></div>';
   }
   html += '<div class="tchip tide"><b>'+tn+'</b><span>潮回り・月齢'+Math.round(age)+'</span></div>';
   $("today-grid").innerHTML = html;
   $("today-hint").innerHTML = todayHint(w);
+  $("today-note-src").textContent = w ? "データ：気象庁予報モデル（Open-Meteo経由）" : "";
 }
 async function fetchWeather(lat, lon){
-  const url = "https://api.open-meteo.com/v1/forecast?latitude="+lat+"&longitude="+lon+
-    "&current=temperature_2m,weather_code,wind_speed_10m,wind_direction_10m,pressure_msl&wind_speed_unit=ms&timezone=auto";
-  const r = await fetch(url);
+  const base = "https://api.open-meteo.com/v1/forecast?latitude="+lat+"&longitude="+lon;
+  const main = "&current=temperature_2m,weather_code,wind_speed_10m,wind_direction_10m,pressure_msl"+
+    "&daily=weather_code,temperature_2m_max,temperature_2m_min&wind_speed_unit=ms&timezone=auto&forecast_days=1";
+  /* JMA (気象庁) model first for Japan accuracy; fall back to global model outside its coverage */
+  let r = await fetch(base + main + "&models=jma_seamless");
+  if(!r.ok) r = await fetch(base + main);
   if(!r.ok) throw new Error("http "+r.status);
   const j = await r.json();
-  const c = j.current;
-  return {temp:c.temperature_2m, code:c.weather_code, wind:c.wind_speed_10m, windDir:c.wind_direction_10m, pressure:c.pressure_msl};
+  /* precipitation probability is not provided by the JMA model — fetch it from the default model */
+  let prob = null;
+  try{
+    const r2 = await fetch(base + "&daily=precipitation_probability_max&timezone=auto&forecast_days=1");
+    if(r2.ok){ prob = (await r2.json()).daily.precipitation_probability_max[0]; }
+  }catch(e){}
+  const c = j.current, dl = j.daily || {};
+  return {
+    temp:c.temperature_2m, code:c.weather_code, wind:c.wind_speed_10m, windDir:c.wind_direction_10m, pressure:c.pressure_msl,
+    dayCode:(dl.weather_code||[])[0], tmax:(dl.temperature_2m_max||[])[0], tmin:(dl.temperature_2m_min||[])[0], prob
+  };
 }
 async function loadTodayWeather(lat, lon, label){
   $("loc-label").textContent = label ? "📍 "+label : "";

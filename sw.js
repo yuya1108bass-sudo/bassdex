@@ -1,4 +1,4 @@
-const CACHE = "bassdex-v3";
+const CACHE = "bassdex-v4";
 const ASSETS = ["./", "./index.html", "./icon-192.png", "./manifest.webmanifest"];
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
