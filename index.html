@@ -135,18 +135,6 @@ a{color:var(--steel)}
 }
 .today-head{display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap}
 .today-head .season-tag{color:var(--steel)}
-.today-search{display:flex; gap:8px; margin-top:10px}
-.today-search input{
-  flex:1; font:inherit; font-size:14px; color:var(--ink); background:var(--bg);
-  border:1px solid var(--line2); padding:8px 11px; min-width:0;
-}
-.today-search input:focus{outline:2px solid var(--accent); outline-offset:-1px}
-.today-search .btn{font-size:13px; padding:8px 18px; flex:none}
-.loc-results{display:flex; gap:6px; flex-wrap:wrap; margin-top:8px}
-.loc-results:empty{display:none}
-.loc-results .mchip{min-width:0; padding:5px 12px}
-#loc-label{margin-top:8px}
-#loc-label:empty{display:none}
 .today-grid{display:flex; gap:8px; flex-wrap:wrap; margin-top:10px}
 .tchip{
   flex:1; min-width:92px; background:var(--bg); border:1px solid var(--line); padding:8px 10px 7px; text-align:center;
@@ -374,18 +362,10 @@ label.field{display:block; margin-bottom:13px; font-size:11px; font-weight:800; 
 <section id="view-dex">
   <div class="today" id="today-panel">
     <div class="today-head">
-      <span class="season-tag latin">TODAY'S CONDITIONS</span>
-      <button class="linkbtn" id="btn-geo" type="button"><span class="ic">📍</span> 現在地</button>
+      <span class="season-tag latin">TIDE &amp; MOON</span>
     </div>
-    <div class="today-search">
-      <input type="search" id="loc-input" placeholder="釣り場を検索（例：琵琶湖、霞ヶ浦、河口湖）" enterkeyhint="search">
-      <button class="btn" id="btn-loc-search" type="button">検索</button>
-    </div>
-    <div class="loc-results" id="loc-results"></div>
-    <div class="today-note" id="loc-label"></div>
     <div class="today-grid" id="today-grid"></div>
     <div class="today-hint" id="today-hint"></div>
-    <div class="today-note" id="today-note-src"></div>
   </div>
   <div class="season" id="season-panel">
     <div class="season-tag latin">SEASONAL PATTERN</div>
@@ -1014,7 +994,7 @@ $("import-file").addEventListener("change",e=>{
   r.readAsText(f);
 });
 
-/* ---- today's conditions: weather (Open-Meteo) + tide phase (computed locally) ---- */
+/* ---- tide phase & moon age (computed locally, no network) ---- */
 function moonAge(d){
   const SYNODIC = 29.530588853;
   const ref = Date.UTC(2000, 0, 6, 18, 14); // known new moon
@@ -1030,166 +1010,22 @@ function tideNameFromAge(age){
   if(a===10 || a===24) return "長潮";
   return "若潮"; // 11, 25, 26
 }
-function weatherLabel(code){
-  if(code===0) return ["快晴","☀️"];
-  if(code<=2) return ["晴れ","🌤"];
-  if(code===3) return ["曇り","☁️"];
-  if(code<=48) return ["霧","🌫"];
-  if(code<=57) return ["霧雨","🌦"];
-  if(code<=67) return ["雨","🌧"];
-  if(code<=77) return ["雪","🌨"];
-  if(code<=82) return ["にわか雨","🌦"];
-  if(code<=86) return ["にわか雪","🌨"];
-  return ["雷雨","⛈"];
-}
-function windDir(deg){
-  const dirs=["北","北東","東","南東","南","南西","西","北西"];
-  return dirs[Math.round(deg/45)%8];
-}
-function todayHint(w){
-  const hints=[];
-  if(w){
-    if((w.code>=61 && w.code<=99) || (w.prob!=null && w.prob>=50)) hints.push("<b>雨のローライト</b>：トップ・巻物が強い時間。増水後の濁りはチャート系");
-    if(w.wind>=5) hints.push("<b>強風注意</b>：安全第一。風裏か、あえて風表のブレイクをスピナベで");
-    else if(w.wind>=3) hints.push("<b>風が吹いたら</b>：風の当たる岸にベイトが寄る。巻物のチャンス");
-    if(w.pressure && w.pressure<=1005) hints.push("<b>低気圧接近</b>：気圧低下で浮きやすく喰いが立つ。荒食いに期待");
-    if(hints.length===0 && (w.code<=2)) hints.push("<b>晴天ハイプレッシャー</b>：シェード・ディープ・水通しを丁寧に");
-  }
-  const tn = tideNameFromAge(moonAge(new Date()));
-  if(tn==="大潮") hints.push("<b>大潮</b>：リバー・河口エリアは流れが効く。月夜は夜行性も活発");
-  return hints.slice(0,2).join("<br>");
-}
-function renderTodayChips(w){
+function renderToday(){
   const age = moonAge(new Date());
   const tn = tideNameFromAge(age);
-  let html = "";
-  if(w){
-    const [wl, emoji] = weatherLabel(w.code);
-    html += '<div class="tchip"><b>'+emoji+" "+wl+'</b><span>現在の天気</span></div>';
-    html += '<div class="tchip"><b class="num">'+Math.round(w.temp)+'℃</b><span>気温</span></div>';
-    html += '<div class="tchip"><b class="num">'+w.wind.toFixed(1)+'<small style="font-size:11px">m/s</small> '+windDir(w.windDir)+'</b><span>風</span></div>';
-    html += '<div class="tchip"><b class="num">'+Math.round(w.pressure)+'<small style="font-size:11px">hPa</small></b><span>気圧</span></div>';
-    if(w.dayCode!=null){
-      const [dl2, em2] = weatherLabel(w.dayCode);
-      html += '<div class="tchip"><b>'+em2+" "+dl2+'</b><span>今日の予報</span></div>';
-    }
-    if(w.tmax!=null && w.tmin!=null){
-      html += '<div class="tchip"><b class="num">'+Math.round(w.tmax)+'<small style="font-size:11px">℃</small>／'+Math.round(w.tmin)+'<small style="font-size:11px">℃</small></b><span>最高・最低</span></div>';
-    }
-    if(w.prob!=null){
-      html += '<div class="tchip"><b class="num">'+w.prob+'<small style="font-size:11px">%</small></b><span>降水確率</span></div>';
-    }
-  }else{
-    html += '<div class="tchip"><b>—</b><span>天気（取得できません）</span></div>';
-  }
-  html += '<div class="tchip tide"><b>'+tn+'</b><span>潮回り・月齢'+Math.round(age)+'</span></div>';
-  $("today-grid").innerHTML = html;
-  $("today-hint").innerHTML = todayHint(w);
-  $("today-note-src").textContent = w ? "データ：気象庁予報モデル（Open-Meteo経由）" : "";
+  const phase = age < 1.8 ? "新月" : age < 6 ? "三日月" : age < 9.2 ? "上弦" : age < 13 ? "十三夜" :
+                age < 16.6 ? "満月" : age < 21 ? "居待月" : age < 24.4 ? "下弦" : age < 28 ? "有明月" : "新月";
+  $("today-grid").innerHTML =
+    '<div class="tchip tide"><b>'+tn+'</b><span>今日の潮回り</span></div>'+
+    '<div class="tchip"><b class="num">'+Math.round(age)+'</b><span>月齢（'+phase+'）</span></div>';
+  $("today-hint").innerHTML =
+    tn==="大潮" ? "<b>大潮</b>：リバー・河口エリアは流れが効く。月夜は夜行性のベイトも活発" :
+    tn==="若潮" ? "<b>若潮</b>：潮が動き始めるタイミング。流れの変化に注目" : "";
 }
-async function fetchWeather(lat, lon){
-  const base = "https://api.open-meteo.com/v1/forecast?latitude="+lat+"&longitude="+lon;
-  const main = "&current=temperature_2m,weather_code,wind_speed_10m,wind_direction_10m,pressure_msl"+
-    "&daily=weather_code,temperature_2m_max,temperature_2m_min&wind_speed_unit=ms&timezone=auto&forecast_days=1";
-  /* JMA (気象庁) model first for Japan accuracy; fall back to global model outside its coverage */
-  let r = await fetch(base + main + "&models=jma_seamless");
-  if(!r.ok) r = await fetch(base + main);
-  if(!r.ok) throw new Error("http "+r.status);
-  const j = await r.json();
-  /* precipitation probability is not provided by the JMA model — fetch it from the default model */
-  let prob = null;
-  try{
-    const r2 = await fetch(base + "&daily=precipitation_probability_max&timezone=auto&forecast_days=1");
-    if(r2.ok){ prob = (await r2.json()).daily.precipitation_probability_max[0]; }
-  }catch(e){}
-  const c = j.current, dl = j.daily || {};
-  return {
-    temp:c.temperature_2m, code:c.weather_code, wind:c.wind_speed_10m, windDir:c.wind_direction_10m, pressure:c.pressure_msl,
-    dayCode:(dl.weather_code||[])[0], tmax:(dl.temperature_2m_max||[])[0], tmin:(dl.temperature_2m_min||[])[0], prob
-  };
-}
-async function loadTodayWeather(lat, lon, label){
-  $("loc-label").textContent = label ? "📍 "+label : "";
-  try{
-    renderTodayChips(await fetchWeather(lat,lon));
-  }catch(e){ renderTodayChips(null); }
-}
-function setLocation(lat, lon, label){
-  localStorage.setItem("bassdex.loc", JSON.stringify({lat, lon, label}));
-  loadTodayWeather(lat, lon, label);
-}
-async function searchLocation(){
-  const q = $("loc-input").value.trim();
-  if(!q) return;
-  const box = $("loc-results");
-  box.innerHTML = '<span class="today-note">検索中…</span>';
-  let cands = [];
-  /* 1st: GSI (国土地理院) — strong for Japanese place/lake names */
-  try{
-    const r = await fetch("https://msearch.gsi.go.jp/address-search/AddressSearch?q="+encodeURIComponent(q));
-    if(r.ok){
-      const j = await r.json();
-      cands = (j||[]).slice(0,5).map(f=>({
-        lat:f.geometry.coordinates[1], lon:f.geometry.coordinates[0], label:f.properties.title
-      }));
-    }
-  }catch(e){}
-  /* fallback: Open-Meteo geocoding (worldwide) */
-  if(cands.length===0){
-    try{
-      const r = await fetch("https://geocoding-api.open-meteo.com/v1/search?name="+encodeURIComponent(q)+"&count=5&language=ja&format=json");
-      if(r.ok){
-        const j = await r.json();
-        cands = (j.results||[]).map(p=>({
-          lat:p.latitude, lon:p.longitude, label:p.name+(p.admin1?"（"+p.admin1+"）":"")
-        }));
-      }
-    }catch(e){}
-  }
-  if(cands.length===0){
-    box.innerHTML = '<span class="today-note">見つかりませんでした。湖名・市町村名・地名などで試してください。</span>';
-    return;
-  }
-  if(cands.length===1){
-    box.innerHTML = "";
-    setLocation(cands[0].lat, cands[0].lon, cands[0].label);
-    toast(cands[0].label+" の天気に切り替えました");
-    return;
-  }
-  box.innerHTML = "";
-  cands.forEach(p=>{
-    const b = document.createElement("button");
-    b.type="button"; b.className="mchip"; b.textContent=p.label;
-    b.addEventListener("click", ()=>{
-      box.innerHTML = "";
-      setLocation(p.lat, p.lon, p.label);
-      toast(p.label+" の天気に切り替えました");
-    });
-    box.appendChild(b);
-  });
-}
-$("btn-loc-search").addEventListener("click", searchLocation);
-$("loc-input").addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); searchLocation(); } });
-
-async function loadToday(useGeo){
-  renderTodayChips(null); // tide shows immediately
-  let lat=35.68, lon=139.69, label="東京（初期値）— 上の検索で釣り場を設定できます";
-  const saved = (()=>{ try{ return JSON.parse(localStorage.getItem("bassdex.loc")); }catch(e){ return null; } })();
-  if(saved){ lat=saved.lat; lon=saved.lon; label=saved.label||"保存した場所"; }
-  if(useGeo && navigator.geolocation){
-    try{
-      const pos = await new Promise((res,rej)=>navigator.geolocation.getCurrentPosition(res,rej,{timeout:8000,maximumAge:600000}));
-      lat = pos.coords.latitude; lon = pos.coords.longitude; label="現在地";
-      localStorage.setItem("bassdex.loc", JSON.stringify({lat,lon,label}));
-    }catch(e){ if(!saved) toast("位置情報が使えないため東京基準の天気を表示します"); }
-  }
-  loadTodayWeather(lat, lon, label);
-}
-$("btn-geo").addEventListener("click", ()=>{ loadToday(true); toast("現在地の天気を取得中…"); });
 
 renderSeason();
 render();
-loadToday(!!(localStorage.getItem("bassdex.loc")));
+renderToday();
 </script>
 
 <script>
