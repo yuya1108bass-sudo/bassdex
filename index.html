@@ -78,12 +78,15 @@ a{color:var(--steel)}
 .stat.record b{color:var(--gold)}
 
 /* ===== tabs ===== */
-.tabs{display:flex; gap:6px; margin:24px 0 18px}
+.tabs{display:flex; gap:6px; margin:24px 0 18px; flex-wrap:wrap}
 .tab{
   appearance:none; background:var(--card); border:1px solid var(--line2);
   padding:9px 24px; font:inherit; font-size:13px; font-weight:800; letter-spacing:.14em;
-  color:var(--ink2); cursor:pointer; transition:all .14s ease;
+  color:var(--ink2); cursor:pointer; transition:all .14s ease; white-space:nowrap;
   clip-path:polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
+}
+@media (max-width:480px){
+  .tab{padding:8px 13px; font-size:12px; letter-spacing:.08em}
 }
 .tab.on{background:var(--accent); border-color:var(--accent); color:var(--accent-ink)}
 .tab:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
