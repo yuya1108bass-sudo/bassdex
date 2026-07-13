@@ -59,8 +59,8 @@ a{color:var(--steel)}
 .eyebrow{font-size:12px; letter-spacing:.4em; color:var(--steel); font-weight:700; font-style:italic}
 .hero h1{margin:10px 0 2px; font-size:clamp(30px,6.2vw,50px); line-height:1.06; font-weight:800; letter-spacing:.02em}
 .hero h1 .en{
-  display:inline-block; background:var(--accent); color:#fff;
-  font-size:clamp(20px,4vw,32px); line-height:1; padding:7px 18px 6px 14px; margin-bottom:12px;
+  display:inline-block; background:var(--accent);
+  font-size:clamp(20px,4vw,32px); line-height:1; padding:7px 18px 6px 14px; margin-bottom:12px; color:var(--accent-ink);
   clip-path:polygon(0 0, 100% 0, calc(100% - 12px) 100%, 0 100%);
   transform:skewX(-6deg); letter-spacing:.06em;
 }
@@ -85,7 +85,7 @@ a{color:var(--steel)}
   color:var(--ink2); cursor:pointer; transition:all .14s ease;
   clip-path:polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
 }
-.tab.on{background:var(--accent); border-color:var(--accent); color:#fff}
+.tab.on{background:var(--accent); border-color:var(--accent); color:var(--accent-ink)}
 .tab:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
 
 /* ===== season panel ===== */
@@ -170,7 +170,7 @@ a{color:var(--steel)}
 #field-map:empty{display:none}
 .map-pin{
   width:15px; height:15px; background:var(--accent); border:2px solid rgba(255,255,255,.55);
-  transform:rotate(45deg); cursor:pointer; box-shadow:0 0 12px rgba(255,61,46,.65);
+  transform:rotate(45deg); cursor:pointer; box-shadow:0 0 12px color-mix(in srgb, var(--accent) 65%, transparent);
 }
 .maplibregl-popup-content{
   background:var(--card) !important; color:var(--ink) !important; border:1px solid var(--line2);
@@ -188,7 +188,7 @@ a{color:var(--steel)}
 .pop-links a:hover{color:var(--accent)}
 .pop3d{
   appearance:none; font:inherit; font-size:12px; font-weight:800; cursor:pointer;
-  background:var(--accent); color:#fff; border:none; padding:6px 12px;
+  background:var(--accent); color:var(--accent-ink); border:none; padding:6px 12px;
   clip-path:polygon(5px 0, 100% 0, calc(100% - 5px) 100%, 0 100%);
 }
 
@@ -270,18 +270,32 @@ a{color:var(--steel)}
   border:1px solid var(--line2); background:var(--card); color:var(--ink); padding:8px 18px;
   clip-path:polygon(7px 0, 100% 0, calc(100% - 7px) 100%, 0 100%);
 }
-.btn.primary,.btn.danger{background:var(--accent); border-color:var(--accent); color:#fff}
+.btn.primary,.btn.danger{background:var(--accent); border-color:var(--accent); color:var(--accent-ink)}
 .btn.primary:disabled{background:var(--line2); border-color:var(--line2); color:var(--ink2); cursor:wait}
 .btn:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
 .fab{
   position:fixed; right:18px; bottom:18px; padding:16px 28px; font-size:15px;
-  border:none; background:linear-gradient(160deg, var(--accent), var(--accent2)); color:#fff; font-weight:800; cursor:pointer;
-  letter-spacing:.1em; box-shadow:0 8px 24px rgba(255,61,46,.35), 0 4px 14px rgba(0,0,0,.5);
+  border:none; background:linear-gradient(160deg, var(--accent), var(--accent2)); color:var(--accent-ink); font-weight:800; cursor:pointer;
+  letter-spacing:.1em; box-shadow:0 8px 24px color-mix(in srgb, var(--accent) 35%, transparent), 0 4px 14px rgba(0,0,0,.5);
   clip-path:polygon(12px 0, 100% 0, calc(100% - 12px) 100%, 0 100%);
   transition:transform .14s ease;
 }
 .fab:hover{transform:scale(1.05)}
 .toolbar{display:flex; gap:8px; justify-content:flex-end; margin-bottom:14px; flex-wrap:wrap}
+/* ===== theme customize ===== */
+.theme-btn{margin-left:auto; padding:9px 14px}
+.swatches{display:flex; gap:10px; flex-wrap:wrap}
+.swatch{
+  appearance:none; border:2px solid var(--line2); background:var(--bg); color:var(--ink2);
+  cursor:pointer; padding:8px 10px 7px; text-align:center; font:inherit; font-size:11px; font-weight:800;
+  display:flex; flex-direction:column; align-items:center; gap:6px; min-width:76px;
+  clip-path:polygon(6px 0, 100% 0, calc(100% - 6px) 100%, 0 100%);
+}
+.swatch .dot{width:26px; height:26px; border-radius:50%; border:2px solid rgba(255,255,255,.25)}
+.swatch.on{border-color:var(--accent); color:var(--ink)}
+.swatch:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+#theme-custom{height:44px; padding:2px; cursor:pointer}
+
 /* ===== track list ===== */
 .track{
   display:flex; align-items:center; gap:12px; padding:12px 14px; margin-bottom:10px;
@@ -293,7 +307,7 @@ a{color:var(--steel)}
   appearance:none; width:42px; height:42px; border-radius:50%; flex:none; cursor:pointer;
   border:1px solid var(--line2); background:var(--bg); color:var(--ink); font-size:15px;
 }
-.track.playing .tplay{background:var(--accent); border-color:var(--accent); color:#fff}
+.track.playing .tplay{background:var(--accent); border-color:var(--accent); color:var(--accent-ink)}
 .tplay:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
 .tname{flex:1; min-width:0; font-weight:800; font-size:14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 .tmeta{font-size:11px; color:var(--ink2); font-weight:400}
@@ -314,7 +328,7 @@ a{color:var(--steel)}
 .bgm-btn:hover{border-color:var(--accent); color:var(--accent)}
 .bgm-btn.playing{
   background:var(--accent); border-color:var(--accent); color:#fff;
-  box-shadow:0 0 20px rgba(255,61,46,.55);
+  box-shadow:0 0 20px color-mix(in srgb, var(--accent) 55%, transparent);
   animation:bgm-pulse 2s ease-in-out infinite;
 }
 @keyframes bgm-pulse{
@@ -384,7 +398,7 @@ label.field{display:block; margin-bottom:13px; font-size:11px; font-weight:800; 
   font-size:clamp(52px,13vw,110px); font-weight:800; letter-spacing:.02em; line-height:1;
   color:var(--accent); text-transform:uppercase;
   font-family:Impact,"Avenir Next Condensed","Arial Narrow",Arial,sans-serif; font-style:italic;
-  text-shadow:0 0 40px rgba(255,61,46,.55);
+  text-shadow:0 0 40px color-mix(in srgb, var(--accent) 55%, transparent);
   animation:pop .5s cubic-bezier(.2,1.6,.4,1) both;
 }
 .cele-word.lunker{color:var(--gold); text-shadow:0 0 44px rgba(255,179,0,.6)}
@@ -427,6 +441,7 @@ label.field{display:block; margin-bottom:13px; font-size:11px; font-weight:800; 
   <button class="tab" id="tab-log" role="tab" aria-selected="false">釣果記録</button>
   <button class="tab" id="tab-map" role="tab" aria-selected="false">フィールド</button>
   <button class="tab" id="tab-music" role="tab" aria-selected="false">曲</button>
+  <button class="tab theme-btn" id="btn-theme" type="button" aria-label="カラーカスタマイズ">🎨</button>
 </div>
 
 <section id="view-dex">
@@ -558,6 +573,21 @@ label.field{display:block; margin-bottom:13px; font-size:11px; font-weight:800; 
   <div class="dlg-foot">
     <button class="btn" type="button" data-close>キャンセル</button>
     <button class="btn danger" type="button" id="confirm-ok">削除する</button>
+  </div>
+</dialog>
+
+<dialog id="dlg-theme">
+  <div class="dlg-head"><h2>カラーカスタマイズ</h2><button class="dlg-close" data-close aria-label="閉じる">×</button></div>
+  <div class="dlg-body">
+    <div class="field-title" style="margin-bottom:8px">プリセット</div>
+    <div class="swatches" id="swatches"></div>
+    <label class="field" style="margin-top:16px">好きな色をつくる
+      <input type="color" id="theme-custom" value="#FF3D2E">
+    </label>
+  </div>
+  <div class="dlg-foot">
+    <button class="btn" type="button" id="theme-reset">リセット</button>
+    <button class="btn primary" type="button" data-close>OK</button>
   </div>
 </dialog>
 
@@ -1146,9 +1176,10 @@ cele.addEventListener("click", closeCelebrate);
 function runConfetti(count, lunker){
   const cv = $("confetti"), ctx = cv.getContext("2d");
   cv.width = innerWidth; cv.height = innerHeight;
+  const accentNow = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#FF3D2E";
   const colors = lunker
-    ? ["#FFB300","#FFD965","#FF3D2E","#F2F4F1"]
-    : ["#FF3D2E","#F2F4F1","#9FB4C7","#C4271B"];
+    ? ["#FFB300","#FFD965",accentNow,"#F2F4F1"]
+    : [accentNow,"#F2F4F1","#9FB4C7",shadeColor(accentNow,0.72)];
   const P = [];
   for(let i=0;i<count;i++){
     P.push({
@@ -1317,6 +1348,54 @@ bgmBtn.addEventListener("click", ()=>{
   }else bgm.pause();
 });
 loadTracks();
+
+/* ---- color customize ---- */
+const THEME_PRESETS = [
+  {name:"レッド", hex:"#FF3D2E"},
+  {name:"チャート", hex:"#C6F211"},
+  {name:"ブルー", hex:"#35A7FF"},
+  {name:"グリーン", hex:"#3ECF6A"},
+  {name:"パープル", hex:"#A86BFF"},
+  {name:"シルバー", hex:"#C9D4DE"},
+];
+function shadeColor(hex, f){
+  const n = parseInt(hex.slice(1), 16);
+  const r = Math.round(((n>>16)&255)*f), g = Math.round(((n>>8)&255)*f), b = Math.round((n&255)*f);
+  return "#" + [r,g,b].map(x=>x.toString(16).padStart(2,"0")).join("");
+}
+function lum(hex){
+  const n = parseInt(hex.slice(1), 16);
+  return (0.299*((n>>16)&255) + 0.587*((n>>8)&255) + 0.114*(n&255)) / 255;
+}
+function applyAccent(hex){
+  const rt = document.documentElement.style;
+  rt.setProperty("--accent", hex);
+  rt.setProperty("--accent2", shadeColor(hex, 0.72));
+  rt.setProperty("--accent-ink", lum(hex) > 0.6 ? "#10150B" : "#FFFFFF");
+}
+function currentAccent(){ return localStorage.getItem("bassdex.accent") || "#FF3D2E"; }
+function setAccent(hex, save){
+  applyAccent(hex);
+  if(save!==false) localStorage.setItem("bassdex.accent", hex);
+  renderSwatches();
+  $("theme-custom").value = hex;
+}
+function renderSwatches(){
+  const cur = currentAccent().toLowerCase();
+  const box = $("swatches"); box.innerHTML = "";
+  THEME_PRESETS.forEach(pr=>{
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "swatch" + (pr.hex.toLowerCase()===cur ? " on" : "");
+    b.innerHTML = '<span class="dot" style="background:'+pr.hex+'"></span>'+pr.name;
+    b.addEventListener("click", ()=>{ setAccent(pr.hex); toast(pr.name+"カラーに変更しました"); });
+    box.appendChild(b);
+  });
+}
+$("btn-theme").addEventListener("click", ()=>{ renderSwatches(); $("theme-custom").value = currentAccent(); $("dlg-theme").showModal(); });
+$("theme-custom").addEventListener("input", e=>setAccent(e.target.value));
+$("theme-reset").addEventListener("click", ()=>{ setAccent("#FF3D2E"); toast("デフォルトカラーに戻しました"); });
+setAccent(currentAccent(), false);
 
 renderSeason();
 render();
