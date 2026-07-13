@@ -128,6 +128,41 @@ a{color:var(--steel)}
 .linkbtn:hover{border-color:var(--accent); color:var(--accent)}
 .linkbtn .ic{color:var(--accent); font-style:normal}
 
+/* ===== today panel ===== */
+.today{
+  background:var(--card); border:1px solid var(--line2); border-top:3px solid var(--steel);
+  padding:14px 18px 12px; margin-bottom:14px; box-shadow:var(--shadow);
+}
+.today-head{display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap}
+.today-head .season-tag{color:var(--steel)}
+.today-grid{display:flex; gap:8px; flex-wrap:wrap; margin-top:10px}
+.tchip{
+  flex:1; min-width:92px; background:var(--bg); border:1px solid var(--line); padding:8px 10px 7px; text-align:center;
+}
+.tchip b{
+  display:block; font-size:19px; font-weight:800; line-height:1.15;
+  font-family:Impact,"Avenir Next Condensed","Arial Narrow",Arial,sans-serif; font-style:italic; letter-spacing:.02em;
+}
+.tchip span{font-size:10px; color:var(--ink2); letter-spacing:.18em; font-weight:700}
+.tchip.tide b{color:var(--gold)}
+.today-hint{font-size:12px; color:var(--ink2); margin-top:9px}
+.today-hint b{color:var(--accent)}
+.today-note{font-size:11px; color:var(--ink2)}
+
+/* ===== year filter ===== */
+.year-summary{
+  display:flex; gap:16px; flex-wrap:wrap; align-items:baseline;
+  background:var(--card); border:1px solid var(--line2); border-left:3px solid var(--accent);
+  padding:10px 16px; margin-bottom:14px; font-size:13px; box-shadow:var(--shadow);
+}
+.year-summary b{font-size:18px}
+.ys-label{color:var(--accent); font-weight:700; letter-spacing:.2em; font-size:12px}
+.year-divider{
+  font-size:22px; font-weight:800; color:var(--ink2); letter-spacing:.08em;
+  border-bottom:1px solid var(--line2); padding-bottom:4px; margin:20px 0 12px;
+}
+#view-log .months{margin:0 0 12px}
+
 /* ===== dex grid ===== */
 .grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(158px,1fr)); gap:14px}
 .dex-card{
@@ -325,6 +360,14 @@ label.field{display:block; margin-bottom:13px; font-size:11px; font-weight:800; 
 </div>
 
 <section id="view-dex">
+  <div class="today" id="today-panel">
+    <div class="today-head">
+      <span class="season-tag latin">TODAY'S CONDITIONS</span>
+      <button class="linkbtn" id="btn-geo" type="button"><span class="ic">📍</span> 現在地で更新</button>
+    </div>
+    <div class="today-grid" id="today-grid"></div>
+    <div class="today-hint" id="today-hint"></div>
+  </div>
   <div class="season" id="season-panel">
     <div class="season-tag latin">SEASONAL PATTERN</div>
     <h2 id="season-title"></h2>
@@ -342,6 +385,8 @@ label.field{display:block; margin-bottom:13px; font-size:11px; font-weight:800; 
 </section>
 
 <section id="view-log" hidden>
+  <div class="months" id="year-chips" role="group" aria-label="年を選択"></div>
+  <div class="year-summary" id="year-summary" style="display:none"></div>
   <div class="toolbar">
     <button class="btn" id="btn-export">書き出し (JSON)</button>
     <button class="btn" id="btn-import">読み込み</button>
@@ -591,10 +636,52 @@ function render(){
     g.appendChild(card);
   });
 
-  // log list
+  // log list — filterable by year
   const l = $("log-list"); l.innerHTML="";
-  if(db.catches.length===0){ l.innerHTML='<div class="empty">まだ記録がありません。「＋ 釣果を登録」から最初の1匹を刻みましょう。</div>'; }
-  [...db.catches].sort((a,b)=>b.date.localeCompare(a.date)||b.id-a.id).forEach(c=>{
+  const sorted = [...db.catches].sort((a,b)=>b.date.localeCompare(a.date)||b.id-a.id);
+  const years = [...new Set(sorted.map(c=>(c.date||"").slice(0,4)))].filter(Boolean);
+  if(logYear!=="all" && !years.includes(logYear)) logYear="all";
+  const yc = $("year-chips"); yc.innerHTML="";
+  if(years.length>0){
+    const mkChip=(val,label)=>{
+      const b=document.createElement("button");
+      b.className="mchip num"+(logYear===val?" on":"");
+      b.textContent=label;
+      b.addEventListener("click",()=>{ logYear=val; render(); });
+      yc.appendChild(b);
+    };
+    mkChip("all","ALL");
+    years.forEach(y=>mkChip(y, y+"年"));
+  }
+  const filtered = logYear==="all" ? sorted : sorted.filter(c=>c.date.slice(0,4)===logYear);
+  const ys = $("year-summary");
+  if(filtered.length>0){
+    const lun = filtered.filter(isLunker).length;
+    const best = filtered.reduce((m,c)=>((c.sizeCm||0)>(m.sizeCm||0)?c:m), {});
+    ys.innerHTML =
+      '<span class="ys-label latin">'+(logYear==="all"?"ALL TIME":logYear+" SEASON")+'</span>'+
+      '<span>釣果 <b class="num">'+filtered.length+'</b>匹</span>'+
+      '<span>ランカー <b class="num">'+lun+'</b>本</span>'+
+      (best.sizeCm ? '<span>ベスト <b class="num">'+best.sizeCm+'cm</b> '+esc(best.species||"")+'</span>' : "");
+    ys.style.display="";
+  }else{
+    ys.style.display="none";
+  }
+  if(filtered.length===0){
+    l.innerHTML = '<div class="empty">'+(db.catches.length ? "この年の記録はありません。" : "まだ記録がありません。「＋ 釣果を登録」から最初の1匹を刻みましょう。")+'</div>';
+  }
+  let lastYear="";
+  filtered.forEach(c=>{
+    if(logYear==="all"){
+      const y=(c.date||"").slice(0,4);
+      if(y && y!==lastYear){
+        lastYear=y;
+        const dv=document.createElement("div");
+        dv.className="year-divider latin";
+        dv.textContent=y;
+        l.appendChild(dv);
+      }
+    }
     const item = document.createElement("div");
     item.className="log-item"+(isLunker(c)?" lunker-row":"");
     const placeLinks = c.place
@@ -618,6 +705,8 @@ function render(){
     l.appendChild(item);
   });
 }
+
+let logYear = "all";
 
 /* ---- tabs ---- */
 function switchTab(dex){
@@ -906,8 +995,98 @@ $("import-file").addEventListener("change",e=>{
   r.readAsText(f);
 });
 
+/* ---- today's conditions: weather (Open-Meteo) + tide phase (computed locally) ---- */
+function moonAge(d){
+  const SYNODIC = 29.530588853;
+  const ref = Date.UTC(2000, 0, 6, 18, 14); // known new moon
+  let age = ((d.getTime() - ref) / 86400000) % SYNODIC;
+  if(age < 0) age += SYNODIC;
+  return age;
+}
+function tideNameFromAge(age){
+  const a = Math.round(age) % 30;
+  if([0,1,2,14,15,16,29].includes(a)) return "大潮";
+  if([3,4,5,6,12,13,17,18,19,20,27,28].includes(a)) return "中潮";
+  if([7,8,9,21,22,23].includes(a)) return "小潮";
+  if(a===10 || a===24) return "長潮";
+  return "若潮"; // 11, 25, 26
+}
+function weatherLabel(code){
+  if(code===0) return ["快晴","☀️"];
+  if(code<=2) return ["晴れ","🌤"];
+  if(code===3) return ["曇り","☁️"];
+  if(code<=48) return ["霧","🌫"];
+  if(code<=57) return ["霧雨","🌦"];
+  if(code<=67) return ["雨","🌧"];
+  if(code<=77) return ["雪","🌨"];
+  if(code<=82) return ["にわか雨","🌦"];
+  if(code<=86) return ["にわか雪","🌨"];
+  return ["雷雨","⛈"];
+}
+function windDir(deg){
+  const dirs=["北","北東","東","南東","南","南西","西","北西"];
+  return dirs[Math.round(deg/45)%8];
+}
+function todayHint(w){
+  const hints=[];
+  if(w){
+    if(w.code>=61 && w.code<=99) hints.push("<b>雨のローライト</b>：トップ・巻物が強い時間。増水後の濁りはチャート系");
+    if(w.wind>=5) hints.push("<b>強風注意</b>：安全第一。風裏か、あえて風表のブレイクをスピナベで");
+    else if(w.wind>=3) hints.push("<b>風が吹いたら</b>：風の当たる岸にベイトが寄る。巻物のチャンス");
+    if(w.pressure && w.pressure<=1005) hints.push("<b>低気圧接近</b>：気圧低下で浮きやすく喰いが立つ。荒食いに期待");
+    if(hints.length===0 && (w.code<=2)) hints.push("<b>晴天ハイプレッシャー</b>：シェード・ディープ・水通しを丁寧に");
+  }
+  const tn = tideNameFromAge(moonAge(new Date()));
+  if(tn==="大潮") hints.push("<b>大潮</b>：リバー・河口エリアは流れが効く。月夜は夜行性も活発");
+  return hints.slice(0,2).join("<br>");
+}
+function renderTodayChips(w){
+  const age = moonAge(new Date());
+  const tn = tideNameFromAge(age);
+  let html = "";
+  if(w){
+    const [wl, emoji] = weatherLabel(w.code);
+    html += '<div class="tchip"><b>'+emoji+" "+wl+'</b><span>天気</span></div>';
+    html += '<div class="tchip"><b class="num">'+Math.round(w.temp)+'℃</b><span>気温</span></div>';
+    html += '<div class="tchip"><b class="num">'+w.wind.toFixed(1)+'<small style="font-size:11px">m/s</small> '+windDir(w.windDir)+'</b><span>風</span></div>';
+    html += '<div class="tchip"><b class="num">'+Math.round(w.pressure)+'<small style="font-size:11px">hPa</small></b><span>気圧</span></div>';
+  }else{
+    html += '<div class="tchip"><b>—</b><span>天気（取得できません）</span></div>';
+  }
+  html += '<div class="tchip tide"><b>'+tn+'</b><span>潮回り・月齢'+Math.round(age)+'</span></div>';
+  $("today-grid").innerHTML = html;
+  $("today-hint").innerHTML = todayHint(w);
+}
+async function fetchWeather(lat, lon){
+  const url = "https://api.open-meteo.com/v1/forecast?latitude="+lat+"&longitude="+lon+
+    "&current=temperature_2m,weather_code,wind_speed_10m,wind_direction_10m,pressure_msl&wind_speed_unit=ms&timezone=auto";
+  const r = await fetch(url);
+  if(!r.ok) throw new Error("http "+r.status);
+  const j = await r.json();
+  const c = j.current;
+  return {temp:c.temperature_2m, code:c.weather_code, wind:c.wind_speed_10m, windDir:c.wind_direction_10m, pressure:c.pressure_msl};
+}
+async function loadToday(useGeo){
+  renderTodayChips(null); // tide shows immediately
+  let lat=35.68, lon=139.69;
+  const saved = (()=>{ try{ return JSON.parse(localStorage.getItem("bassdex.loc")); }catch(e){ return null; } })();
+  if(saved){ lat=saved.lat; lon=saved.lon; }
+  if(useGeo && navigator.geolocation){
+    try{
+      const pos = await new Promise((res,rej)=>navigator.geolocation.getCurrentPosition(res,rej,{timeout:8000,maximumAge:600000}));
+      lat = pos.coords.latitude; lon = pos.coords.longitude;
+      localStorage.setItem("bassdex.loc", JSON.stringify({lat,lon}));
+    }catch(e){ if(!saved) toast("位置情報が使えないため東京基準の天気を表示します"); }
+  }
+  try{
+    renderTodayChips(await fetchWeather(lat,lon));
+  }catch(e){ renderTodayChips(null); }
+}
+$("btn-geo").addEventListener("click", ()=>{ loadToday(true); toast("コンディションを更新中…"); });
+
 renderSeason();
 render();
+loadToday(!!(localStorage.getItem("bassdex.loc")));
 </script>
 
 <script>
