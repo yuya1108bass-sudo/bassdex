@@ -163,6 +163,35 @@ a{color:var(--steel)}
 }
 #view-log .months{margin:0 0 12px}
 
+/* ===== field map ===== */
+.map-head{display:flex; justify-content:space-between; align-items:flex-end; gap:10px; margin-bottom:10px; flex-wrap:wrap}
+.map-head .btn{font-size:12px; padding:7px 14px}
+#field-map{height:70vh; min-height:420px; border:1px solid var(--line2); background:var(--bg2); box-shadow:var(--shadow)}
+#field-map:empty{display:none}
+.map-pin{
+  width:15px; height:15px; background:var(--accent); border:2px solid rgba(255,255,255,.55);
+  transform:rotate(45deg); cursor:pointer; box-shadow:0 0 12px rgba(255,61,46,.65);
+}
+.maplibregl-popup-content{
+  background:var(--card) !important; color:var(--ink) !important; border:1px solid var(--line2);
+  font-family:inherit; padding:12px 14px !important; box-shadow:var(--shadow) !important;
+}
+.maplibregl-popup-anchor-bottom .maplibregl-popup-tip{border-top-color:var(--card) !important}
+.maplibregl-popup-anchor-top .maplibregl-popup-tip{border-bottom-color:var(--card) !important}
+.maplibregl-popup-close-button{color:var(--ink2); font-size:18px}
+.pop-name{font-weight:800; font-size:15px}
+.pop-pref{font-size:11px; color:var(--ink2); font-weight:700; margin-left:4px}
+.pop-desc{font-size:12px; color:var(--ink2); margin:5px 0; line-height:1.5}
+.pop-my{font-size:12px; color:var(--gold); font-weight:800; margin:4px 0}
+.pop-links{display:flex; gap:10px; align-items:center; margin-top:8px}
+.pop-links a{color:var(--steel); font-weight:700; font-size:12px; text-decoration:none}
+.pop-links a:hover{color:var(--accent)}
+.pop3d{
+  appearance:none; font:inherit; font-size:12px; font-weight:800; cursor:pointer;
+  background:var(--accent); color:#fff; border:none; padding:6px 12px;
+  clip-path:polygon(5px 0, 100% 0, calc(100% - 5px) 100%, 0 100%);
+}
+
 /* ===== dex grid ===== */
 .grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(158px,1fr)); gap:14px}
 .dex-card{
@@ -357,6 +386,7 @@ label.field{display:block; margin-bottom:13px; font-size:11px; font-weight:800; 
 <div class="tabs" role="tablist">
   <button class="tab on" id="tab-dex" role="tab" aria-selected="true">図鑑</button>
   <button class="tab" id="tab-log" role="tab" aria-selected="false">釣果記録</button>
+  <button class="tab" id="tab-map" role="tab" aria-selected="false">フィールド</button>
 </div>
 
 <section id="view-dex">
@@ -392,6 +422,18 @@ label.field{display:block; margin-bottom:13px; font-size:11px; font-weight:800; 
     <input type="file" id="import-file" accept="application/json" hidden>
   </div>
   <div id="log-list"></div>
+</section>
+
+<section id="view-map" hidden>
+  <div class="map-head">
+    <div>
+      <span class="season-tag latin">FAMOUS FIELDS</span>
+      <div class="today-note">ピンをタップ →「⛰ 3Dで見る」で地形を立体表示。2本指（右ドラッグ）で回転・傾き</div>
+    </div>
+    <button class="btn" id="btn-map-reset" type="button">🗾 全体に戻る</button>
+  </div>
+  <div id="field-map"></div>
+  <div id="field-fallback"></div>
 </section>
 </div>
 
@@ -708,13 +750,133 @@ function render(){
 let logYear = "all";
 
 /* ---- tabs ---- */
-function switchTab(dex){
-  $("tab-dex").classList.toggle("on",dex); $("tab-log").classList.toggle("on",!dex);
-  $("tab-dex").setAttribute("aria-selected",dex); $("tab-log").setAttribute("aria-selected",!dex);
-  $("view-dex").hidden=!dex; $("view-log").hidden=dex;
+const VIEWS = ["dex","log","map"];
+function switchTab(which){
+  if(which===true) which="dex";
+  if(which===false) which="log";
+  VIEWS.forEach(v=>{
+    $("tab-"+v).classList.toggle("on", v===which);
+    $("tab-"+v).setAttribute("aria-selected", v===which);
+    $("view-"+v).hidden = (v!==which);
+  });
+  if(which==="map") initFieldMap();
 }
-$("tab-dex").addEventListener("click",()=>switchTab(true));
-$("tab-log").addEventListener("click",()=>switchTab(false));
+$("tab-dex").addEventListener("click",()=>switchTab("dex"));
+$("tab-log").addEventListener("click",()=>switchTab("log"));
+$("tab-map").addEventListener("click",()=>switchTab("map"));
+
+/* ---- famous fields map (MapLibre + GSI photo tiles + AWS terrain) ---- */
+const FIELDS = [
+  {name:"琵琶湖", pref:"滋賀", type:"天然湖", lat:35.33, lon:136.16, desc:"日本最大の湖にして世界記録級が潜む聖地。北湖はクリア＆ディープ、南湖は広大なウィードフラット。"},
+  {name:"霞ヶ浦", pref:"茨城", type:"天然湖", lat:36.03, lon:140.40, desc:"関東のマザーレイク。杭・石積み・流入河川と、岸釣りストラクチャーの宝庫。"},
+  {name:"北浦", pref:"茨城", type:"天然湖", lat:35.97, lon:140.55, desc:"霞水系の相棒。ドック・杭撃ちの名場面多数。"},
+  {name:"牛久沼", pref:"茨城", type:"沼", lat:35.93, lon:140.14, desc:"日本のバス釣り黎明期を支えた沼。ヘビーカバー撃ちの世界。"},
+  {name:"印旛沼", pref:"千葉", type:"沼", lat:35.76, lon:140.22, desc:"マッディシャローの典型。朝夕のトップが熱い。"},
+  {name:"亀山ダム", pref:"千葉", type:"リザーバー", lat:35.24, lon:140.11, desc:"房総リザーバーの代表格。レンタルボートでの数釣りとサイズ両狙い。"},
+  {name:"片倉ダム", pref:"千葉", type:"リザーバー", lat:35.19, lon:140.07, desc:"笹川湖。立ち木とカバーが豊富なテクニカルレイク。"},
+  {name:"高滝湖", pref:"千葉", type:"リザーバー", lat:35.36, lon:140.09, desc:"オープンウォーターの釣りが学べる房総の人気湖。"},
+  {name:"相模湖", pref:"神奈川", type:"リザーバー", lat:35.61, lon:139.19, desc:"歴史ある関東リザーバー。ワカサギレイクのビッグバス。"},
+  {name:"津久井湖", pref:"神奈川", type:"リザーバー", lat:35.59, lon:139.26, desc:"デカバスの実績で名高い関東屈指のタフレイク。"},
+  {name:"芦ノ湖", pref:"神奈川", type:"天然湖", lat:35.20, lon:139.00, desc:"1925年、日本で初めてバスが放流された記念すべき湖。"},
+  {name:"河口湖", pref:"山梨", type:"天然湖", lat:35.52, lon:138.75, desc:"バス釣りの聖地。大会・放流管理が整った富士五湖の代表。"},
+  {name:"西湖", pref:"山梨", type:"天然湖", lat:35.50, lon:138.68, desc:"クリアウォーターのサイトフィッシング天国。"},
+  {name:"山中湖", pref:"山梨", type:"天然湖", lat:35.42, lon:138.87, desc:"富士五湖最大。ウィードエリアの巻物が楽しい。"},
+  {name:"野尻湖", pref:"長野", type:"天然湖", lat:36.83, lon:138.22, desc:"スモールマウスの聖地。クリアディープの繊細な釣り。"},
+  {name:"木崎湖", pref:"長野", type:"天然湖", lat:36.55, lon:137.83, desc:"仁科三湖のスモール・ラージ混生レイク。"},
+  {name:"桧原湖", pref:"福島", type:"天然湖", lat:37.66, lon:140.07, desc:"裏磐梯のスモールマウスフィールド。夏の虫パターンが有名。"},
+  {name:"五三川", pref:"岐阜", type:"河川", lat:35.15, lon:136.62, desc:"東海の超人気おかっぱりリバー。"},
+  {name:"大江川", pref:"岐阜", type:"河川", lat:35.18, lon:136.63, desc:"五三川と並ぶ東海の岸釣りメジャーリバー。"},
+  {name:"入鹿池", pref:"愛知", type:"リザーバー", lat:35.34, lon:136.99, desc:"歴史ある農業用ため池。ワカサギとバスの好フィールド。"},
+  {name:"池原ダム", pref:"奈良", type:"リザーバー", lat:34.07, lon:135.96, desc:"ビッグバスの聖地。60アップの夢が現実にある超クリアリザーバー。"},
+  {name:"七色ダム", pref:"三重/奈良", type:"リザーバー", lat:34.00, lon:136.00, desc:"池原の下流に位置するテクニカルなクリアレイク。"},
+  {name:"合川ダム", pref:"和歌山", type:"リザーバー", lat:33.79, lon:135.49, desc:"紀伊半島の名門リザーバー。複雑な地形の攻略が鍵。"},
+  {name:"東条湖", pref:"兵庫", type:"リザーバー", lat:34.92, lon:135.02, desc:"関西の老舗リザーバー。ボートでの縦スト撃ち。"},
+  {name:"遠賀川", pref:"福岡", type:"河川", lat:33.74, lon:130.73, desc:"九州を代表するバスリバー。全国区の大会も開催。"},
+  {name:"旧吉野川", pref:"徳島", type:"河川", lat:34.12, lon:134.48, desc:"四国の超メジャーリバー。潮位で変わる流れを読む釣り。"},
+];
+let mapInited = false, fieldMap = null;
+function loadMapLibre(){
+  return new Promise((resolve, reject)=>{
+    if(window.maplibregl) return resolve();
+    const css = document.createElement("link");
+    css.rel="stylesheet"; css.href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css";
+    document.head.appendChild(css);
+    const sc = document.createElement("script");
+    sc.src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js";
+    sc.onload=()=>resolve(); sc.onerror=()=>reject(new Error("cdn"));
+    document.body.appendChild(sc);
+    setTimeout(()=>reject(new Error("timeout")), 15000);
+  });
+}
+async function initFieldMap(){
+  if(mapInited) return;
+  mapInited = true;
+  try{
+    await loadMapLibre();
+    fieldMap = new maplibregl.Map({
+      container:"field-map",
+      style:{
+        version:8,
+        sources:{
+          photo:{ type:"raster", tiles:["https://cyberjapandata.gsi.go.jp/xyz/seamlessphoto/{z}/{x}/{y}.jpg"],
+                  tileSize:256, maxzoom:18, attribution:"地図:国土地理院 / 標高:AWS Terrain Tiles(Mapzen)" },
+          dem:{ type:"raster-dem", tiles:["https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"],
+                tileSize:256, encoding:"terrarium", maxzoom:14 }
+        },
+        layers:[
+          {id:"photo", type:"raster", source:"photo"},
+          {id:"hills", type:"hillshade", source:"dem", paint:{"hillshade-exaggeration":0.3}}
+        ]
+      },
+      center:[137.6,36.4], zoom:4.5, maxPitch:75, attributionControl:{compact:true}
+    });
+    fieldMap.addControl(new maplibregl.NavigationControl({visualizePitch:true}));
+    fieldMap.on("load", ()=>{
+      fieldMap.setTerrain({source:"dem", exaggeration:1.35});
+    });
+    FIELDS.forEach(f=>{
+      const el = document.createElement("div");
+      el.className = "map-pin";
+      el.title = f.name;
+      const mine = db.catches.filter(c=>c.place && (c.place.includes(f.name) || f.name.includes(c.place))).length;
+      const html =
+        '<div class="pop-name">'+f.name+'<span class="pop-pref">'+f.pref+'・'+f.type+'</span></div>'+
+        '<div class="pop-desc">'+f.desc+'</div>'+
+        (mine ? '<div class="pop-my">📖 自分の記録：'+mine+'匹</div>' : "")+
+        '<div class="pop-links">'+
+          '<button class="pop3d" data-lat="'+f.lat+'" data-lon="'+f.lon+'">⛰ 3Dで見る</button>'+
+          '<a href="'+ytURL(f.name+" バス釣り")+'" target="_blank" rel="noopener">▶ 攻略動画</a>'+
+        '</div>';
+      new maplibregl.Marker({element:el})
+        .setLngLat([f.lon, f.lat])
+        .setPopup(new maplibregl.Popup({offset:16, maxWidth:"290px"}).setHTML(html))
+        .addTo(fieldMap);
+    });
+    $("field-map").addEventListener("click", e=>{
+      const b = e.target.closest(".pop3d");
+      if(!b || !fieldMap) return;
+      fieldMap.flyTo({center:[+b.dataset.lon, +b.dataset.lat], zoom:12.4, pitch:68, bearing:-25, duration:2600});
+    });
+    $("btn-map-reset").addEventListener("click", ()=>{
+      if(fieldMap) fieldMap.flyTo({center:[137.6,36.4], zoom:4.5, pitch:0, bearing:0, duration:1800});
+    });
+  }catch(err){
+    renderFieldFallback();
+  }
+}
+function renderFieldFallback(){
+  $("field-map").style.display = "none";
+  $("field-fallback").innerHTML =
+    '<div class="empty" style="padding:14px 0">この環境では地図を読み込めないため、リスト表示しています。</div>'+
+    FIELDS.map(f=>
+      '<div class="log-item"><div class="log-main">'+
+      '<div class="log-title">'+f.name+'<span class="pop-pref">'+f.pref+'・'+f.type+'</span></div>'+
+      '<div class="log-meta" style="white-space:normal">'+f.desc+'</div>'+
+      '<div class="log-meta"><a href="'+mapsURL(f.name)+'" target="_blank" rel="noopener">📍 地図</a>　'+
+      '<a href="'+ytURL(f.name+" バス釣り")+'" target="_blank" rel="noopener">▶ 動画</a></div>'+
+      '</div></div>'
+    ).join("");
+}
 
 /* ---- add dialog ---- */
 let photoData = null;
