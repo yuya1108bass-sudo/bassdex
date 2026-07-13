@@ -282,6 +282,22 @@ a{color:var(--steel)}
 }
 .fab:hover{transform:scale(1.05)}
 .toolbar{display:flex; gap:8px; justify-content:flex-end; margin-bottom:14px; flex-wrap:wrap}
+.bgm-btn{
+  position:fixed; left:18px; bottom:18px; width:48px; height:48px; border-radius:50%;
+  border:1px solid var(--line2); background:var(--card); color:var(--ink2);
+  font-size:20px; font-weight:800; cursor:pointer; z-index:50;
+  box-shadow:0 4px 14px rgba(0,0,0,.5); transition:all .2s ease;
+}
+.bgm-btn:hover{border-color:var(--accent); color:var(--accent)}
+.bgm-btn.playing{
+  background:var(--accent); border-color:var(--accent); color:#fff;
+  box-shadow:0 0 20px rgba(255,61,46,.55);
+  animation:bgm-pulse 2s ease-in-out infinite;
+}
+@keyframes bgm-pulse{
+  0%,100%{transform:scale(1)} 50%{transform:scale(1.08)}
+}
+@media (prefers-reduced-motion: reduce){ .bgm-btn.playing{animation:none} }
 .toolbar .btn{font-size:12px; padding:6px 14px}
 
 /* ===== modal ===== */
@@ -438,6 +454,9 @@ label.field{display:block; margin-bottom:13px; font-size:11px; font-weight:800; 
 </div>
 
 <button class="fab" id="btn-add">＋ 釣果を登録</button>
+
+<audio id="bgm" src="bgm.mp3" loop preload="none"></audio>
+<button class="bgm-btn" id="btn-bgm" type="button" title="BGM：ツリゴコロ7" aria-label="BGMを再生 / 停止" hidden>♪</button>
 
 <dialog id="dlg-add">
   <div class="dlg-head"><h2>釣果を登録</h2><button class="dlg-close" data-close aria-label="閉じる">×</button></div>
@@ -1183,6 +1202,28 @@ function renderToday(){
   $("today-hint").innerHTML =
     tn==="大潮" ? "<b>大潮</b>：リバー・河口エリアは流れが効く。月夜は夜行性のベイトも活発" :
     tn==="若潮" ? "<b>若潮</b>：潮が動き始めるタイミング。流れの変化に注目" : "";
+}
+
+/* ---- BGM player ---- */
+{
+  const bgm = $("bgm"), btn = $("btn-bgm");
+  /* show the button only if the audio file is actually reachable
+     (hidden on environments that can't serve it, e.g. the claude.ai version) */
+  fetch("bgm.mp3", {method:"HEAD"}).then(r=>{ if(r.ok) btn.hidden = false; }).catch(()=>{});
+  btn.addEventListener("click", ()=>{
+    if(bgm.paused){
+      bgm.volume = 0.5;
+      bgm.play().then(()=>{
+        btn.classList.add("playing");
+        btn.textContent = "♪";
+        toast("♪ ツリゴコロ7");
+      }).catch(()=>toast("再生できませんでした。もう一度タップしてください。"));
+    }else{
+      bgm.pause();
+      btn.classList.remove("playing");
+    }
+  });
+  bgm.addEventListener("ended", ()=>btn.classList.remove("playing"));
 }
 
 renderSeason();
