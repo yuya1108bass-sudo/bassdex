@@ -1219,6 +1219,86 @@ $("import-file").addEventListener("change",e=>{
   r.readAsText(f);
 });
 
+/* ---- music: playlist auto-discovered from the repo's music/ folder ---- */
+const MUSIC_API = "https://api.github.com/repos/yuya1108bass-sudo/bassdex/contents/music";
+const MUSIC_FALLBACK = ["chance.mp3","ツリゴコロ7.mp3"];
+let tracks = null, currentTrack = -1;
+const bgm = $("bgm"), bgmBtn = $("btn-bgm");
+
+async function loadTracks(force){
+  if(tracks && !force) return;
+  let names = null;
+  try{
+    const r = await fetch(MUSIC_API, {headers:{Accept:"application/vnd.github+json"}});
+    if(r.ok){
+      const j = await r.json();
+      if(Array.isArray(j)){
+        names = j.filter(f=>f.type==="file" && /\.(mp3|m4a|wav|ogg)$/i.test(f.name)).map(f=>f.name);
+      }
+    }
+  }catch(e){}
+  if(!names || names.length===0) names = MUSIC_FALLBACK;
+  tracks = names.map(n=>({
+    file:n,
+    title:n.replace(/\.(mp3|m4a|wav|ogg)$/i,""),
+    url:"music/"+encodeURIComponent(n)
+  }));
+  renderTracks();
+  bgmBtn.hidden = tracks.length===0;
+}
+function renderTracks(){
+  const box = $("track-list");
+  if(!tracks || tracks.length===0){
+    box.innerHTML = '<div class="empty">曲がまだありません。</div>';
+    return;
+  }
+  box.innerHTML = "";
+  tracks.forEach((t,i)=>{
+    const row = document.createElement("div");
+    row.className = "track"+(i===currentTrack && !bgm.paused ? " playing" : "");
+    row.innerHTML =
+      '<button class="tplay" aria-label="再生 / 一時停止">'+(i===currentTrack && !bgm.paused ? "❚❚" : "▶")+'</button>'+
+      '<div class="tname">'+esc(t.title)+'<div class="tmeta">TRACK '+String(i+1).padStart(2,"0")+'</div></div>'+
+      '<a class="tdl" href="'+t.url+'" download="'+esc(t.file)+'">⬇ DL</a>';
+    row.querySelector(".tplay").addEventListener("click", ()=>{
+      if(i===currentTrack && !bgm.paused){ bgm.pause(); updateMusicUI(); }
+      else playTrack(i);
+    });
+    box.appendChild(row);
+  });
+}
+function playTrack(i){
+  if(!tracks || !tracks[i]) return;
+  if(currentTrack!==i){
+    currentTrack = i;
+    bgm.src = tracks[i].url;
+  }
+  bgm.volume = 0.6;
+  bgm.play().then(()=>{
+    toast("♪ "+tracks[i].title);
+    updateMusicUI();
+  }).catch(()=>{
+    toast("この環境では再生できません（Web版でお試しください）");
+    updateMusicUI();
+  });
+}
+function updateMusicUI(){
+  bgmBtn.classList.toggle("playing", !bgm.paused);
+  if($("view-music").hidden===false) renderTracks();
+}
+bgm.addEventListener("ended", ()=>{
+  if(tracks && tracks.length>0) playTrack((currentTrack+1) % tracks.length);
+});
+bgm.addEventListener("pause", updateMusicUI);
+bgm.addEventListener("play", updateMusicUI);
+bgmBtn.addEventListener("click", ()=>{
+  if(bgm.paused){
+    if(currentTrack<0) playTrack(0);
+    else bgm.play().catch(()=>{});
+  }else bgm.pause();
+});
+loadTracks();
+
 /* ---- color customize ---- */
 const THEME_PRESETS = [
   {name:"レッド", hex:"#FF3D2E"},
